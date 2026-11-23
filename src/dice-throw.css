@@ -1,0 +1,32 @@
+/* Dice drawn with CSS 3D: glazed white porcelain cubes, rounded and glossy, with recessed pips. */
+.dt-scene{position:absolute;inset:0;overflow:visible;pointer-events:none}
+.dt-die,.dt-shadow{position:absolute;left:0;top:0;will-change:transform}
+.dt-die{perspective:900px;perspective-origin:50% 50%}
+.dt-cube{position:absolute;inset:0;transform-style:preserve-3d}
+.dt-shadow{border-radius:50%;background:radial-gradient(closest-side,#2a3a3066,#0000);filter:blur(3px)}
+.dt-face{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:7%;padding:15%;border-radius:22%;
+  /* Clean glazed white: a soft glossy highlight in the upper left, a faint cool tint at the rim, no grey. */
+  background:
+    radial-gradient(ellipse 60% 42% at 28% 18%,#ffffff 0%,#ffffff00 72%),
+    radial-gradient(circle at 50% 45%,#ffffff 0%,#ffffff 70%,#f1f5fa 100%);
+  box-shadow:inset 0 0 0 1px #dfe7f0,inset 0 -2px 4px #ffffff,inset 0 2px 3px #ffffff,inset 2px 0 4px #ffffff;
+  filter:brightness(var(--sh,1))}
+.dt-front{transform:translateZ(calc(var(--dt-size) / 2))}
+.dt-back{transform:rotateY(180deg) translateZ(calc(var(--dt-size) / 2))}
+.dt-right{transform:rotateY(90deg) translateZ(calc(var(--dt-size) / 2))}
+.dt-left{transform:rotateY(-90deg) translateZ(calc(var(--dt-size) / 2))}
+.dt-top{transform:rotateX(90deg) translateZ(calc(var(--dt-size) / 2))}
+.dt-bottom{transform:rotateX(-90deg) translateZ(calc(var(--dt-size) / 2))}
+.dt-face i{display:block;border-radius:50%}
+.dt-pip{background:radial-gradient(circle at 36% 30%,#3c424b,#0b0d10 62%);box-shadow:inset 0 1px 2px #000a,0 0 0 1px #ffffff}
+.dt-pip-red{background:radial-gradient(circle at 36% 30%,#ff6a78,#d41433 55%,#7e0a1f);box-shadow:inset 0 1px 2px #4a0010aa,0 0 0 1px #ffffff}
+.dt-pip-one{transform:scale(1.9)}
+
+/* The porcelain dish: a flat floor that is the throwing area, a thick glazed rim with a painted cobalt line around it.
+   The floor is 1/1.22 of the width, matching DISH_RIM in DiceThrow.jsx. */
+.dt-dish{position:absolute;border-radius:50%;pointer-events:none;
+  background:radial-gradient(closest-side,#fffdf7 0%,#f8f4e8 58%,#ece5d4 77%,#d3cab4 81%,#f9f5ea 83%,#ffffff 89%,#2a4aa0 90.2%,#2a4aa0 91.3%,#fbf8f1 92.4%,#efe9da 97%,#d2c9b4 99.3%,#0000 100%);
+  filter:drop-shadow(0 9px 10px #0b160f77);animation:dishIn .22s ease-out}
+.dt-dish::after{content:'';position:absolute;inset:6%;border-radius:50%;background:radial-gradient(ellipse 36% 24% at 30% 20%,#ffffffcc,#ffffff00 70%)}
+@keyframes dishIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.dt-dish{animation:none}}

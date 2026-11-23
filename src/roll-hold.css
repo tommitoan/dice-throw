@@ -1,0 +1,3 @@
+/* The charge meter inside the hold-to-throw button: it fills as the button is held. */
+.roll-hold-bar{position:absolute;left:3px;right:3px;bottom:3px;height:10px;border:1px solid #fff2c8aa;border-radius:999px;background:linear-gradient(90deg,#fff5bf 0%,#ffd34f 48%,#ff914d 100%);transform:scaleX(var(--hold,0));transform-origin:left center;opacity:0;transition:transform .07s linear,opacity .12s ease;box-shadow:inset 0 1px 2px #6d3a1c99}
+.roll-hold-bar.is-holding{opacity:1;filter:drop-shadow(0 0 5px #ffe29a99)}

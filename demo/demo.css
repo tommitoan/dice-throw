@@ -1,0 +1,20 @@
+:root{color-scheme:dark;--bg:#14201a;--panel:#1d2c24;--line:#2f4439;--text:#e9efe9;--muted:#9fb3a6;--accent:#ffd34f}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:16px;display:grid;gap:16px;grid-template-columns:minmax(0,1fr) 320px}
+@media(max-width:820px){main{grid-template-columns:1fr}}
+h1{font-size:18px;margin:0 0 4px}
+h2{font-size:13px;margin:0 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.stage-wrap{display:flex;justify-content:center;padding:18px 0}
+.stage{position:relative;border:1px dashed var(--line);border-radius:12px;background:#1a2a21}
+.row{display:flex;align-items:center;gap:10px;margin:8px 0;flex-wrap:wrap}
+.row label{min-width:92px;color:var(--muted)}
+.row input[type=range]{flex:1;min-width:120px}
+.value{min-width:42px;text-align:right;font-variant-numeric:tabular-nums}
+button,select{font:inherit;color:var(--text);background:#27382f;border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+.roll-button{position:relative;overflow:hidden;min-width:200px;padding:12px 18px 20px;font-weight:600;touch-action:none;user-select:none;background:#6b3f1f;border-color:#a8672f}
+.log{font:12px/1.5 ui-monospace,monospace;max-height:220px;overflow:auto;white-space:pre;color:var(--muted)}
+.stats{font:12px/1.6 ui-monospace,monospace;white-space:pre-wrap}
+.ok{color:#7be28c}.bad{color:#ff7b7b}
