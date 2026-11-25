@@ -36,7 +36,7 @@ plan.events;       // [{ t, kind, power }, ...] landings and collisions, for sou
 Each die is a rigid cube (position, velocity, orientation, spin) stepped at 240 Hz. Contacts of a corner with the dish
 and of one cube with another are resolved with impulses (restitution and Coulomb friction), so nothing about how a
 die turns over or where it lies is scripted: it lies flat at any heading, or leans on the sloped rim or on the
-other die. The faces are painted afterwards so the top one is the number the server rolled.
+other die. A throw ends when every die has stopped, so its length is not fixed. A light throw drops the dice near the middle; a hard one hurls them round the dish in a random direction. The faces are painted afterwards so the top one is the number the server rolled.
 
 Every setting can be overridden with `physics` (a prop of `DiceThrow`, an option of `planThrow`); the demo page has a
 slider for each. Defaults are in `PHYSICS`:
@@ -47,6 +47,7 @@ slider for each. Defaults are in `PHYSICS`:
 | `floorBounce`, `wallBounce`, `dieBounce` | 0.5, 0.45, 0.5 | share of the approach speed that comes back |
 | `floorFriction`, `dieFriction`, `wallFriction` | 0.5, 0.3, 0.3 | grip; high friction turns sliding into rolling sooner |
 | `rimAngle`, `rimWidth` | 12°, 0.7 | the sloped rim of the dish (width in die widths); 0 gives a flat dish with a wall |
+| `spinChance` | 0.02 | chance per die that it settles flat but still turns on a slick patch of glaze for a few seconds |
 | `spin` | 1 | multiplier on the spin a throw starts with |
 | `settle` | 1 | multiplier on the damping that brings dice to rest |
 

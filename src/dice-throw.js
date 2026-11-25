@@ -26,12 +26,13 @@ export const PHYSICS = {
   rimAngle: 12,         // degrees: how steeply the floor of the dish rises toward the wall
   rimWidth: 0.7,        // width of that sloped rim, in die widths
   spin: 1,              // multiplier on the spin a throw starts with
+  spinChance: 0.02,     // chance, per die, that it lands flat with a spin and keeps turning for a while
   settle: 1,            // multiplier on the damping that brings a die to rest
 };
 
 const FRAME = 1 / 60;
 const STEP = FRAME / 4;        // the physics runs four times per recorded frame
-const MAX_SECONDS = 4.4;
+const MAX_SECONDS = 20;        // a safety stop only: a throw ends when every die has stopped
 const ITERATIONS = 10;         // passes of the contact solver per step
 const SLOP = 0.05;             // px of penetration that is left alone
 const REST_SPEED = 50;         // px/s of approach under which a contact does not bounce
@@ -45,6 +46,7 @@ export const SIDES = ['front', 'back', 'top', 'bottom', 'right', 'left'];
 const NORMALS = { front: [0, 0, 1], back: [0, 0, -1], top: [0, -1, 0], bottom: [0, 1, 0], right: [1, 0, 0], left: [-1, 0, 0] };
 const OPPOSITE = { front: 'back', back: 'front', top: 'bottom', bottom: 'top', right: 'left', left: 'right' };
 
+const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const rad = (deg) => (deg * Math.PI) / 180;
 const deg = (r) => (r * 180) / Math.PI;
 const rotX = ([x, y, z], a) => { const c = Math.cos(a); const s = Math.sin(a); return [x, y * c - z * s, y * s + z * c]; };
@@ -233,33 +235,41 @@ export function planThrow({ width, height, size, strength = 0.78, count = 2, rng
   const sinRim = Math.sin(rad(P.rimAngle));
   const cosRim = Math.cos(rad(P.rimAngle));
 
-  const speed = 320 + 840 * charge;
-  const lift = 360 + 560 * charge;
+  // How the dice are thrown depends on the hand. A light throw lets the two dice drop from a little
+  // above the middle of the dish with hardly any sideways speed; a hard one hurls them along the wall in
+  // one direction (either one, at random) so that they are carried round the dish before they slow.
+  const swirl = smooth(0.12, 0.7, charge);
+  const turn = rng() < 0.5 ? -1 : 1;
+  const heading = rng() * 2 * Math.PI;
   const startRadius = Math.max(0, radius - size * 0.95);
+  const gap = Math.max(0.55, (2.3 * size) / Math.max(startRadius, 1));
 
   const dice = Array.from({ length: count }, (_, i) => {
-    const lane = count === 1 ? 0.5 : 0.25 + (0.5 * i) / (count - 1);
-    const startX = width * lane + (rng() - 0.5) * size * 0.3;
-    const reach = Math.min(Math.abs(startX - cx), startRadius * 0.85);
-    const x = cx + Math.sign(startX - cx || 1) * reach;
-    const y = cy + Math.sqrt(Math.max(0, startRadius * startRadius - reach * reach));
-    const nx = (x - cx) / (startRadius || 1);
-    const ny = (y - cy) / (startRadius || 1);
-    const tangent = (rng() - 0.5) * 1.2;
-    const aimX = -nx - ny * tangent;
-    const aimY = -ny + nx * tangent;
-    const aimLength = Math.hypot(aimX, aimY) || 1;
+    const dropAngle = heading + (2 * Math.PI * i) / count;
+    const dropSpread = count > 1 ? size * (0.75 + 0.3 * rng()) : size * 0.3 * rng();
+    const rimAngle = heading + gap * (i - (count - 1) / 2);
+    const x = cx + (1 - swirl) * Math.cos(dropAngle) * dropSpread + swirl * Math.cos(rimAngle) * startRadius;
+    const y = cy + (1 - swirl) * Math.sin(dropAngle) * dropSpread + swirl * Math.sin(rimAngle) * startRadius;
+    // Round the dish, with a little pull inward so the die meets the wall at a slant.
+    const around = swirl * (850 + 1000 * charge) * (0.85 + 0.3 * rng());
+    const inward = swirl * 140 * rng();
+    const drift = (1 - swirl) * 70 * rng();
+    const driftAngle = rng() * 2 * Math.PI;
+    const vx = -turn * Math.sin(rimAngle) * around - Math.cos(rimAngle) * inward + Math.cos(driftAngle) * drift;
+    const vy = turn * Math.cos(rimAngle) * around - Math.sin(rimAngle) * inward + Math.sin(driftAngle) * drift;
+    const vz = (1 - swirl) * 80 * rng() + swirl * (260 + 360 * charge) * (0.7 + 0.5 * rng());
+    const z = half + size * ((1 - swirl) * (1.6 + 1.3 * rng() + 0.9 * (i % 2)) + swirl * (0.6 + 0.9 * (i % 2)));
     // The spin the hand gives: a random axis, faster for a harder throw.
     const axis = [rng() - 0.5, rng() - 0.5, rng() - 0.5];
     const axisLength = Math.hypot(...axis) || 1;
-    const rate = (9 + 22 * charge) * (0.7 + 0.6 * rng()) * P.spin;
+    const rate = (3 + 26 * charge) * (0.6 + 0.8 * rng()) * P.spin;
     const q = randomQuaternion(rng);
     return {
-      p: [x, y, half + size * (0.6 + 0.9 * (i % 2))],
-      v: [speed * aimX / aimLength * (0.8 + 0.35 * rng()), speed * aimY / aimLength * (0.8 + 0.35 * rng()), lift * (0.85 + 0.3 * rng())],
+      p: [x, y, z], v: [vx, vy, vz],
       w: axis.map((a) => (a / axisLength) * rate),
       q, m: matrixOf(q),
       half, asleep: false, calm: 0, kicks: 0, touch: false, near: 0, stack: 0,
+      spinner: rng() < P.spinChance, glide: 0,
       last: { floor: -1, wall: -1, die: -1 },
     };
   });
@@ -310,16 +320,15 @@ export function planThrow({ width, height, size, strength = 0.78, count = 2, rng
   while (!done) {
     time += STEP;
     step += 1;
-    const ramp = Math.max(0, (time - 2.4) / 1.6);
-    const settle = P.settle * (1 + 28 * ramp * ramp);
+    const settle = P.settle;
 
     // Forces and motion.
     for (const d of dice) {
       if (d.asleep) continue;
       d.v[2] -= P.gravity * STEP;
       if (d.touch) {
-        const lin = Math.exp(-0.5 * settle * STEP);
-        const ang = Math.exp(-1.5 * settle * STEP);
+        const lin = Math.exp(-0.3 * settle * STEP);
+        const ang = Math.exp(-0.6 * settle * STEP);
         d.v[0] *= lin; d.v[1] *= lin;
         d.w[0] *= ang; d.w[1] *= ang; d.w[2] *= ang;
       }
@@ -369,7 +378,7 @@ export function planThrow({ width, height, size, strength = 0.78, count = 2, rng
           gap = (p[2] - (away - rimStart) * tanRim) * cosRim;
         }
         if (gap < 0.6) d.near += 1;
-        if (gap < 0) contacts.push({ a: d, b: null, kind: 'floor', n, depth: -gap, ra, mu: P.floorFriction, e: P.floorBounce });
+        if (gap < 0) contacts.push({ a: d, b: null, kind: 'floor', n, depth: -gap, ra, mu: P.floorFriction * (d.glide || 1), e: P.floorBounce });
       });
     });
     for (let i = 0; i < dice.length; i += 1) {
@@ -476,7 +485,12 @@ export function planThrow({ width, height, size, strength = 0.78, count = 2, rng
       // takes longer to be sure of.
       if (d.calm >= (supported ? SLEEP_TIME : SLEEP_WEDGED)) {
         const up = normalOfMatrix(facingOfMatrix(d.m), d.m)[2];
-        if (up < Math.cos(rad(COCKED)) && d.kicks < 3) {
+        if (d.spinner && up > Math.cos(rad(3))) {
+          // It has settled flat, but with a spin left in it: it turns on its face on a slick spot of the
+          // glaze (`glide` is how little the floor grips it), and only that friction brings it to a stop.
+          d.spinner = false; d.glide = 0.01 + 0.04 * rng(); d.calm = 0;
+          d.w = [0, 0, (rng() < 0.5 ? -1 : 1) * (14 + 26 * rng())];
+        } else if (up < Math.cos(rad(COCKED)) && d.kicks < 3) {
           // Cocked on its edge or leaning on the wall: a real die would be re-thrown, here it is nudged down.
           d.kicks += 1; d.calm = 0;
           const toward = Math.hypot(cx - d.p[0], cy - d.p[1]) || 1;

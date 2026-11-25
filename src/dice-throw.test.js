@@ -25,7 +25,7 @@ describe('dice throw physics', () => {
     for (const strength of [0.65, 0.78, 1.1, 1.45]) {
       for (let seed = 1; seed <= 25; seed += 1) {
         const p = plan(strength, seed);
-        expect(p.duration).toBeLessThanOrEqual(4.5);
+        expect(p.duration).toBeLessThan(20);
         for (let i = 0; i < base.count; i += 1) {
           const end = p.sample(i, p.duration);
           expect(Math.hypot(end.x - p.bounds.cx, end.y - p.bounds.cy)).toBeLessThanOrEqual(p.bounds.radius + 0.01);
@@ -123,14 +123,54 @@ describe('dice throw physics', () => {
     expect(facingOf(0, 90)).toBe('left');
   });
 
-  it('a full charge is thrown, not just spun: higher, longer and with more bounces than a tap', () => {
-    const runs = (strength) => Array.from({ length: 30 }, (_, i) => plan(strength, i + 100));
-    const mean = (list, pick) => list.reduce((sum, p) => sum + pick(p), 0) / list.length;
-    const tap = runs(0.78);
-    const full = runs(1.45);
-    expect(mean(full, (p) => p.peakHeight)).toBeGreaterThan(mean(tap, (p) => p.peakHeight) * 1.4);
-    expect(mean(full, (p) => p.duration)).toBeGreaterThan(mean(tap, (p) => p.duration) * 1.2);
-    expect(mean(full, (p) => p.bounces)).toBeGreaterThan(mean(tap, (p) => p.bounces));
+  it('a light throw is dropped near the middle; a hard one is hurled round the dish and carries the dice farther', () => {
+    const laps = (strength) => {
+      let total = 0;
+      let reach = 0;
+      let n = 0;
+      for (let seed = 1; seed <= 40; seed += 1) {
+        const p = plan(strength, seed + 300);
+        for (let i = 0; i < base.count; i += 1) {
+          let prev = null;
+          for (let t = 0; t <= p.duration; t += 1 / 30) {
+            const e = p.sample(i, t);
+            const theta = Math.atan2(e.y - p.bounds.cy, e.x - p.bounds.cx);
+            if (prev !== null) { let d = theta - prev; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; total += Math.abs(d) / (2 * Math.PI); }
+            prev = theta;
+            if (t < 0.08) reach += Math.hypot(e.x - p.bounds.cx, e.y - p.bounds.cy) / p.bounds.radius;
+          }
+          n += 1;
+        }
+      }
+      return { laps: total / n, startRadius: reach / n / 3 };
+    };
+    const tap = laps(0.7);
+    const full = laps(1.45);
+    expect(full.laps).toBeGreaterThan(tap.laps * 2.5);
+    expect(tap.startRadius).toBeLessThan(0.3);
+    expect(full.startRadius).toBeGreaterThan(0.55);
+  });
+
+  it('has no fixed time to rest: the length of a throw varies widely, for light and hard throws alike', () => {
+    for (const strength of [0.7, 1.45]) {
+      const times = Array.from({ length: 60 }, (_, i) => plan(strength, i + 700).duration).sort((a, b) => a - b);
+      expect(times[times.length - 1] - times[0]).toBeGreaterThan(0.8);
+      expect(new Set(times.map((t) => t.toFixed(2))).size).toBeGreaterThan(30);
+    }
+  });
+
+  it('now and then a die lands flat with a spin and keeps turning for a while before it stops', () => {
+    let spinners = 0;
+    let longest = 0;
+    for (let seed = 1; seed <= 300; seed += 1) {
+      const p = planThrow({ ...base, strength: 1.1, rng: seeded(seed + 900), physics: { spinChance: 0.1 } });
+      longest = Math.max(longest, p.duration);
+      if (p.duration > 3.2) spinners += 1;
+    }
+    expect(spinners).toBeGreaterThan(5);
+    expect(longest).toBeLessThan(20);
+    const never = planThrow({ ...base, strength: 1.1, rng: seeded(901), physics: { spinChance: 0 } });
+    expect(never.duration).toBeLessThan(5);
   });
 
   it('bounces and clicks: a throw lands several times, each landing is a sound with a strength', () => {

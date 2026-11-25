@@ -155,7 +155,7 @@ function App() {
             <div>{`heading 0-90° in 6 bins  ${report.headings.join(' ')}`}</div>
             <div className={report.outside ? 'bad' : 'ok'}>{`outside the dish   ${report.outside}`}</div>
             <div className={report.minGap < 0.9 ? 'bad' : 'ok'}>{`closest dice gap  ${Number.isFinite(report.minGap) ? report.minGap.toFixed(2) + ' dice' : 'n/a'}`}</div>
-            <div className={report.maxDuration > 4.5 ? 'bad' : 'ok'}>{`longest throw     ${report.maxDuration.toFixed(2)} s (mean ${report.meanDuration.toFixed(2)})`}</div>
+            <div className={report.maxDuration > 8 ? 'bad' : 'ok'}>{`longest throw     ${report.maxDuration.toFixed(2)} s (mean ${report.meanDuration.toFixed(2)})`}</div>
             <div>{`most bounces      ${report.maxBounces}`}</div>
             <div>{`end facing        ${SIDES.map((s) => `${s} ${report.sides[s]}`).join(', ')}`}</div>
           </div>}
