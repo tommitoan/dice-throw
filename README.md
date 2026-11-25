@@ -44,10 +44,10 @@ slider for each. Defaults are in `PHYSICS`:
 | setting | default | effect |
 |---|---|---|
 | `gravity` | 2100 | px/s²; lower is floatier |
-| `floorBounce`, `wallBounce`, `dieBounce` | 0.5, 0.45, 0.5 | share of the approach speed that comes back |
-| `floorFriction`, `dieFriction`, `wallFriction` | 0.5, 0.3, 0.3 | grip; high friction turns sliding into rolling sooner |
-| `rimAngle`, `rimWidth` | 12°, 0.7 | the sloped rim of the dish (width in die widths); 0 gives a flat dish with a wall |
-| `spinChance` | 0.02 | chance per die that it settles flat but still turns on a slick patch of glaze for a few seconds |
+| `floorBounce`, `wallBounce`, `dieBounce` | 0.8, 0.7, 0.8 | share of the approach speed that comes back |
+| `floorFriction`, `dieFriction`, `wallFriction` | 0.25, 0.2, 0.015 | grip; high friction turns sliding into rolling sooner |
+| `rimAngle`, `rimWidth` | 18°, 0.7 | the sloped rim of the dish (width in die widths); 0 gives a flat dish with a wall |
+| `spinChance` | 0.02 | chance per die of leaving the hand spinning very fast (45-60 rad/s) |
 | `spin` | 1 | multiplier on the spin a throw starts with |
 | `settle` | 1 | multiplier on the damping that brings dice to rest |
 

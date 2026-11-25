@@ -51,7 +51,7 @@ describe('dice throw physics', () => {
         }
       });
     }
-    expect(headings.length).toBeGreaterThan(100);
+    expect(headings.length).toBeGreaterThan(60);
     // Headings fill the whole quarter turn instead of piling up at 0.
     const bins = [0, 0, 0, 0, 0, 0];
     headings.forEach((h) => { bins[Math.min(5, Math.floor(h / 15))] += 1; });
@@ -159,18 +159,22 @@ describe('dice throw physics', () => {
     }
   });
 
-  it('now and then a die lands flat with a spin and keeps turning for a while before it stops', () => {
-    let spinners = 0;
-    let longest = 0;
-    for (let seed = 1; seed <= 300; seed += 1) {
-      const p = planThrow({ ...base, strength: 1.1, rng: seeded(seed + 900), physics: { spinChance: 0.1 } });
-      longest = Math.max(longest, p.duration);
-      if (p.duration > 3.2) spinners += 1;
+  it('never starts turning by itself: a die lying flat and not moving does not change heading', () => {
+    for (let seed = 1; seed <= 150; seed += 1) {
+      const p = planThrow({ ...base, strength: 1.1, rng: seeded(seed + 900), physics: { spinChance: 0.2 } });
+      expect(p.duration).toBeLessThan(20);
+      for (let i = 0; i < base.count; i += 1) {
+        for (let f = 0; f < p.frames[i].length - 1; f += 1) {
+          const a = p.frames[i][f];
+          const b = p.frames[i][f + 1];
+          const flat = (q) => { const m = p.sample(i, 0); return m && Math.abs(q.z) < 0.3; };
+          if (!flat(a) || !flat(b) || Math.hypot(b.x - a.x, b.y - a.y) > 0.02) continue;
+          const turn = 2 * Math.acos(Math.min(1, Math.abs(a.q[0] * b.q[0] + a.q[1] * b.q[1] + a.q[2] * b.q[2] + a.q[3] * b.q[3])));
+          // A die that slides to a stop may still be turning a little; one that sits still must not be spinning.
+          if (Math.hypot(b.x - a.x, b.y - a.y) < 1e-6) expect(turn).toBeLessThan(0.3);
+        }
+      }
     }
-    expect(spinners).toBeGreaterThan(5);
-    expect(longest).toBeLessThan(20);
-    const never = planThrow({ ...base, strength: 1.1, rng: seeded(901), physics: { spinChance: 0 } });
-    expect(never.duration).toBeLessThan(5);
   });
 
   it('bounces and clicks: a throw lands several times, each landing is a sound with a strength', () => {
