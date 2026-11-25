@@ -19,8 +19,9 @@ import { DiceThrow, RollHoldButton } from 'dice-throw';
 `DiceThrow` is positioned absolutely inside a sized, positioned parent. `onPlan(plan)` receives the planned throw. `strength` runs from 0.65
 (a tap) to 1.45 (a full charge). The package plays no audio: pass `onSound` to hear the throw.
 
-The look of the dice: `dieColor` (any CSS colour, default white), `dieOpacity` (0.15 glass to 1 solid, default 1) and `pipColor`
-(paints every pip; by default they are dark, red on 1 and 4). A translucent die shows its far faces through the near ones.
+The look of the dice: `look` is one of `'ivory'` (default, dark pips with red 1 and 4), `'obsidian'`, `'ruby'`, `'sapphire'`, `'jade'`
+(opaque, white pips) or `'glass'` (translucent, dark pips). The looks are in `LOOKS` (`src/looks.js`); each one fixes body, shade, gloss and
+pip colours together so pips always stand out.
 
 The physics alone, without React:
 

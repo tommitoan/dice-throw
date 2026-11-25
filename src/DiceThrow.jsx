@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { planThrow, layoutFor, normalOfMatrix, dishOf, SIDES } from './dice-throw.js';
+import { lookStyle, alphaOf, hasRedPips, DEFAULT_LOOK } from './looks.js';
 import './dice-throw.css';
 
 const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
@@ -11,15 +12,17 @@ export const DISH_RIM = 1.22;
 const sizeFor = (width) => Math.round(Math.min(46, Math.max(22, width * 0.14)) * 0.8);
 
 function Die({ layout, size, look, dieRef, shadowRef }) {
+  const style = lookStyle(look);
+  const redPips = hasRedPips(look);
   return <>
     <span className="dt-shadow" ref={shadowRef} style={{ width: size, height: size }} />
-    <span className="dt-die" ref={dieRef} style={{ width: size, height: size, '--dt-size': `${size}px`, ...look }}>
+    <span className="dt-die" ref={dieRef} style={{ width: size, height: size, '--dt-size': `${size}px`, ...style }}>
       <span className="dt-cube">
         {/* A solid core just inside the faces: their rounded corners would otherwise leave dark notches at the cube's corners. */}
         <span className="dt-core" aria-hidden="true">{SIDES.map((side) => <span key={side} className={`dt-core-face dt-core-${side}`} />)}</span>
         {SIDES.map((side) => <span key={side} className={`dt-face dt-${side}`} data-side={side}>
           {Array.from({ length: 9 }, (_, index) => PIPS[layout[side]].includes(index)
-            ? <i key={index} className={`dt-pip ${!look['--dt-pip'] && (layout[side] === 1 || layout[side] === 4) ? 'dt-pip-red' : ''} ${layout[side] === 1 ? 'dt-pip-one' : ''}`} />
+            ? <i key={index} className={`dt-pip ${redPips && (layout[side] === 1 || layout[side] === 4) ? 'dt-pip-red' : ''} ${layout[side] === 1 ? 'dt-pip-one' : ''}`} />
             : <i key={index} />)}
         </span>)}
       </span>
@@ -34,9 +37,9 @@ function Die({ layout, size, look, dieRef, shadowRef }) {
 // then every landing and collision at its time); the package plays no audio itself. `onPlan(plan)`
 // receives the planned throw (frames, events, duration) once it is worked out, for tests and tools.
 // `physics` overrides any of the physics settings (see PHYSICS in dice-throw.js).
-// `dieColor` is any CSS colour for the body of the dice (white by default), `dieOpacity` runs from 0.15
-// (glass) to 1 (solid), and `pipColor` paints every pip (by default they are dark, and red on 1 and 4).
-export default function DiceThrow({ faces, strength, snap = false, speed = 1, physics, dieColor = '#ffffff', dieOpacity = 1, pipColor, onSettled, onSound, onPlan }) {
+// `look` is one of the finished looks in looks.js (LOOKS): 'ivory' (the default), 'obsidian', 'ruby',
+// 'sapphire', 'jade' or 'glass'.
+export default function DiceThrow({ faces, strength, snap = false, speed = 1, physics, look = DEFAULT_LOOK, onSettled, onSound, onPlan }) {
   const sceneRef = useRef(null);
   const dieRefs = useRef([]);
   const shadowRefs = useRef([]);
@@ -49,8 +52,7 @@ export default function DiceThrow({ faces, strength, snap = false, speed = 1, ph
   const values = faces.filter((value) => Number.isInteger(value));
   const key = values.join(',');
   const [setup, setSetup] = useState(null);
-  const alpha = Math.min(1, Math.max(0.15, Number.isFinite(dieOpacity) ? dieOpacity : 1));
-  const look = { '--dt-body': dieColor, '--dt-alpha': alpha, ...(pipColor ? { '--dt-pip': pipColor, '--dt-pip-hi': `color-mix(in srgb, ${pipColor} 70%, #ffffff)` } : {}) };
+  const alpha = alphaOf(look);
   const alphaRef = useRef(alpha);
   alphaRef.current = alpha;
 

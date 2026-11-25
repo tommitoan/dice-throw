@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { DiceThrow, RollHoldButton, planThrow, chargeOf, PHYSICS, SIDES } from 'dice-throw';
+import { DiceThrow, RollHoldButton, planThrow, chargeOf, PHYSICS, LOOKS, SIDES } from 'dice-throw';
 import './demo.css';
 
 const randomFace = () => 1 + Math.floor(Math.random() * 6);
@@ -76,7 +76,7 @@ function App() {
   const [settled, setSettled] = useState(true);
   const [report, setReport] = useState(null);
   const [physics, setPhysics] = useState({ ...PHYSICS });
-  const [look, setLook] = useState({ dieColor: '#ffffff', dieOpacity: 1, pipColor: '' });
+  const [look, setLook] = useState('ivory');
   const play = useMemo(makeSound, []);
   const soundOn = useRef(sound);
   soundOn.current = sound;
@@ -99,7 +99,7 @@ function App() {
         <p className="muted" style={{ margin: 0, color: 'var(--muted)' }}>Faces are decided first; the throw lands on them. Hold the button to charge, release to throw.</p>
         <div className="stage-wrap">
           <div className="stage" style={{ width: stage, height: stage }}>
-            {thrown != null && <DiceThrow key={throwId} faces={faces} strength={thrown} snap={snap} speed={speed} physics={physics} dieColor={look.dieColor} dieOpacity={look.dieOpacity} pipColor={look.pipColor || undefined}
+            {thrown != null && <DiceThrow key={throwId} faces={faces} strength={thrown} snap={snap} speed={speed} physics={physics} look={look}
               onPlan={setPlan} onSettled={() => setSettled(true)}
               onSound={(kind, info) => { if (soundOn.current) play(kind, info); }} />}
           </div>
@@ -134,10 +134,10 @@ function App() {
         </section>
 
         <section className="panel">
-          <h2>Dice look <button type="button" onClick={() => setLook({ dieColor: '#ffffff', dieOpacity: 1, pipColor: '' })} style={{ marginLeft: 8 }}>reset</button></h2>
-          <div className="row"><label>Colour</label><input type="color" value={look.dieColor} onChange={(e) => setLook((l) => ({ ...l, dieColor: e.target.value }))} /><span className="value">{look.dieColor}</span></div>
-          <div className="row"><label>Opacity</label><input type="range" min="0.15" max="1" step="0.01" value={look.dieOpacity} onChange={(e) => setLook((l) => ({ ...l, dieOpacity: Number(e.target.value) }))} /><span className="value">{look.dieOpacity.toFixed(2)}</span></div>
-          <div className="row"><label>Pips</label><input type="color" value={look.pipColor || '#0b0d10'} onChange={(e) => setLook((l) => ({ ...l, pipColor: e.target.value }))} /><span className="value">{look.pipColor || 'default'}</span></div>
+          <h2>Dice look</h2>
+          <div className="row" style={{ flexWrap: 'wrap' }}>
+            {Object.entries(LOOKS).map(([id, item]) => <button key={id} type="button" onClick={() => setLook(id)} style={{ outline: look === id ? '2px solid #ffe29a' : 'none' }}>{item.label}</button>)}
+          </div>
         </section>
 
         <section className="panel">
