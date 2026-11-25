@@ -10,16 +10,16 @@ export const DISH_RIM = 1.22;
 // Dice are drawn at 80% of what they once were: a pair then reads as small objects in a dish.
 const sizeFor = (width) => Math.round(Math.min(46, Math.max(22, width * 0.14)) * 0.8);
 
-function Die({ layout, size, dieRef, shadowRef }) {
+function Die({ layout, size, look, dieRef, shadowRef }) {
   return <>
     <span className="dt-shadow" ref={shadowRef} style={{ width: size, height: size }} />
-    <span className="dt-die" ref={dieRef} style={{ width: size, height: size, '--dt-size': `${size}px` }}>
+    <span className="dt-die" ref={dieRef} style={{ width: size, height: size, '--dt-size': `${size}px`, ...look }}>
       <span className="dt-cube">
         {/* A solid core just inside the faces: their rounded corners would otherwise leave dark notches at the cube's corners. */}
         <span className="dt-core" aria-hidden="true">{SIDES.map((side) => <span key={side} className={`dt-core-face dt-core-${side}`} />)}</span>
         {SIDES.map((side) => <span key={side} className={`dt-face dt-${side}`} data-side={side}>
           {Array.from({ length: 9 }, (_, index) => PIPS[layout[side]].includes(index)
-            ? <i key={index} className={`dt-pip ${layout[side] === 1 || layout[side] === 4 ? 'dt-pip-red' : ''} ${layout[side] === 1 ? 'dt-pip-one' : ''}`} />
+            ? <i key={index} className={`dt-pip ${!look['--dt-pip'] && (layout[side] === 1 || layout[side] === 4) ? 'dt-pip-red' : ''} ${layout[side] === 1 ? 'dt-pip-one' : ''}`} />
             : <i key={index} />)}
         </span>)}
       </span>
@@ -34,7 +34,9 @@ function Die({ layout, size, dieRef, shadowRef }) {
 // then every landing and collision at its time); the package plays no audio itself. `onPlan(plan)`
 // receives the planned throw (frames, events, duration) once it is worked out, for tests and tools.
 // `physics` overrides any of the physics settings (see PHYSICS in dice-throw.js).
-export default function DiceThrow({ faces, strength, snap = false, speed = 1, physics, onSettled, onSound, onPlan }) {
+// `dieColor` is any CSS colour for the body of the dice (white by default), `dieOpacity` runs from 0.15
+// (glass) to 1 (solid), and `pipColor` paints every pip (by default they are dark, and red on 1 and 4).
+export default function DiceThrow({ faces, strength, snap = false, speed = 1, physics, dieColor = '#ffffff', dieOpacity = 1, pipColor, onSettled, onSound, onPlan }) {
   const sceneRef = useRef(null);
   const dieRefs = useRef([]);
   const shadowRefs = useRef([]);
@@ -47,6 +49,10 @@ export default function DiceThrow({ faces, strength, snap = false, speed = 1, ph
   const values = faces.filter((value) => Number.isInteger(value));
   const key = values.join(',');
   const [setup, setSetup] = useState(null);
+  const alpha = Math.min(1, Math.max(0.15, Number.isFinite(dieOpacity) ? dieOpacity : 1));
+  const look = { '--dt-body': dieColor, '--dt-alpha': alpha, ...(pipColor ? { '--dt-pip': pipColor, '--dt-pip-hi': `color-mix(in srgb, ${pipColor} 70%, #ffffff)` } : {}) };
+  const alphaRef = useRef(alpha);
+  alphaRef.current = alpha;
 
   // Plan the whole throw first: the faces are painted so the one that ends up on top is the one rolled.
   useLayoutEffect(() => {
@@ -82,7 +88,7 @@ export default function DiceThrow({ faces, strength, snap = false, speed = 1, ph
       if (shadow) {
         const lift = Math.min(1, pose.z / 260);
         shadow.style.transform = `translate(${pose.x - size / 2 + pose.z * 0.12}px, ${pose.y - size / 2 + pose.z * 0.2 + size * 0.1}px) scale(${1 + lift * 0.5})`;
-        shadow.style.opacity = String(0.4 - lift * 0.25);
+        shadow.style.opacity = String((0.4 - lift * 0.25) * (0.35 + 0.65 * alphaRef.current));
       }
     });
     let finished = false;
@@ -115,7 +121,7 @@ export default function DiceThrow({ faces, strength, snap = false, speed = 1, ph
   const diameter = setup ? setup.dish.floor * 2 * rim : 0;
   return <div className="dt-scene" ref={sceneRef} aria-hidden="true">
     {setup && <span className="dt-dish" style={{ left: setup.dish.cx - diameter / 2, top: setup.dish.cy - diameter / 2, width: diameter, height: diameter }} />}
-    {setup && values.map((value, index) => <Die key={`${value}-${index}`} layout={setup.layouts[index]} size={setup.size}
+    {setup && values.map((value, index) => <Die key={`${value}-${index}`} layout={setup.layouts[index]} size={setup.size} look={look}
       dieRef={(node) => { dieRefs.current[index] = node; }} shadowRef={(node) => { shadowRefs.current[index] = node; }} />)}
   </div>;
 }

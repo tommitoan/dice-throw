@@ -7,9 +7,9 @@
 .dt-face{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:7%;padding:15%;border-radius:22%;
   /* Clean glazed white: a soft glossy highlight in the upper left, a faint cool tint at the rim, no grey. */
   background:
-    radial-gradient(ellipse 60% 42% at 28% 18%,#ffffff 0%,#ffffff00 72%),
-    radial-gradient(circle at 50% 45%,#ffffff 0%,#ffffff 70%,#f1f5fa 100%);
-  box-shadow:inset 0 0 0 1px #dfe7f0,inset 0 -2px 4px #ffffff,inset 0 2px 3px #ffffff,inset 2px 0 4px #ffffff;
+    radial-gradient(ellipse 60% 42% at 28% 18%,color-mix(in srgb,#ffffff calc(var(--dt-alpha,1) * 100%),transparent) 0%,#ffffff00 72%),
+    radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--dt-body,#ffffff) calc(var(--dt-alpha,1) * 100%),transparent) 0%,color-mix(in srgb,var(--dt-body,#ffffff) calc(var(--dt-alpha,1) * 100%),transparent) 70%,color-mix(in srgb,color-mix(in srgb,var(--dt-body,#ffffff) 94%,#b4c8dc) calc(var(--dt-alpha,1) * 100%),transparent) 100%);
+  box-shadow:inset 0 0 0 1px #dfe7f0,inset 0 -2px 4px #ffffff88,inset 0 2px 3px #ffffff88,inset 2px 0 4px #ffffff88;
   filter:brightness(var(--sh,1))}
 .dt-front{transform:translateZ(calc(var(--dt-size) / 2))}
 .dt-back{transform:rotateY(180deg) translateZ(calc(var(--dt-size) / 2))}
@@ -18,7 +18,7 @@
 .dt-top{transform:rotateX(90deg) translateZ(calc(var(--dt-size) / 2))}
 .dt-bottom{transform:rotateX(-90deg) translateZ(calc(var(--dt-size) / 2))}
 .dt-core{position:absolute;inset:0;transform-style:preserve-3d;pointer-events:none}
-.dt-core-face{position:absolute;inset:0;background:#f3f6fa}
+.dt-core-face{position:absolute;inset:0;background:color-mix(in srgb,var(--dt-body,#ffffff) calc(var(--dt-alpha,1) * 100%),transparent)}
 .dt-core-front{transform:translateZ(calc(var(--dt-size) * .47))}
 .dt-core-back{transform:rotateY(180deg) translateZ(calc(var(--dt-size) * .47))}
 .dt-core-right{transform:rotateY(90deg) translateZ(calc(var(--dt-size) * .47))}
@@ -26,7 +26,7 @@
 .dt-core-top{transform:rotateX(90deg) translateZ(calc(var(--dt-size) * .47))}
 .dt-core-bottom{transform:rotateX(-90deg) translateZ(calc(var(--dt-size) * .47))}
 .dt-face i{display:block;border-radius:50%}
-.dt-pip{background:radial-gradient(circle at 36% 30%,#3c424b,#0b0d10 62%);box-shadow:inset 0 1px 2px #000a,0 0 0 1px #ffffff}
+.dt-pip{background:radial-gradient(circle at 36% 30%,var(--dt-pip-hi,#3c424b),var(--dt-pip,#0b0d10) 62%);box-shadow:inset 0 1px 2px #000a,0 0 0 1px #ffffff}
 .dt-pip-red{background:radial-gradient(circle at 36% 30%,#ff6a78,#d41433 55%,#7e0a1f);box-shadow:inset 0 1px 2px #4a0010aa,0 0 0 1px #ffffff}
 .dt-pip-one{transform:scale(1.9)}
 

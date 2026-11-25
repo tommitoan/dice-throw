@@ -1,6 +1,6 @@
 {
   "name": "dice-throw",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "A dice throw with its own physics (the faces are decided first, the throw lands on them) and a hold-to-charge throw button.",
   "type": "module",
   "main": "./src/index.js",
