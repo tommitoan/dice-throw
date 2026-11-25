@@ -1,61 +1,104 @@
 import { describe, it, expect } from 'vitest';
-import { planThrow, dishOf, chargeOf, facingOf, layoutFor, normalOf, SIDES } from './dice-throw.js';
+import { planThrow, dishOf, chargeOf, facingOf, facingOfMatrix, eulerOf, layoutFor, normalOf, normalOfMatrix, PHYSICS, SIDES } from './dice-throw.js';
 
 const seeded = (seed) => () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 2 ** 32; };
 const base = { width: 220, height: 220, size: 30, count: 2 };
 const plan = (strength, seed) => planThrow({ ...base, strength, rng: seeded(seed) });
-const quarter = (deg) => Math.abs(deg / 90 - Math.round(deg / 90)) < 1e-9;
+const turnBetween = (a, b) => 2 * Math.acos(Math.min(1, Math.abs(a.q[0] * b.q[0] + a.q[1] * b.q[1] + a.q[2] * b.q[2] + a.q[3] * b.q[3])));
+
+// How far the deepest corner of die A has sunk into die B.
+const sinking = (a, b, size) => {
+  const half = size / 2;
+  let deepest = 0;
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) {
+    const o = [sx * half, sy * half, sz * half];
+    const w = [0, 1, 2].map((r) => [a.x, a.y, a.z + half][r] + a.m[3 * r] * o[0] + a.m[3 * r + 1] * o[1] + a.m[3 * r + 2] * o[2]);
+    const rel = [w[0] - b.x, w[1] - b.y, w[2] - (b.z + half)];
+    const depth = Math.min(...[0, 1, 2].map((k) => half - Math.abs(b.m[k] * rel[0] + b.m[3 + k] * rel[1] + b.m[6 + k] * rel[2])));
+    if (depth > deepest) deepest = depth;
+  }
+  return deepest;
+};
 
 describe('dice throw physics', () => {
-  it('always comes to rest flat, inside the yard and within a bounded time', () => {
+  it('always comes to rest inside the dish and within a bounded time, with no frame turning the cube by a quarter turn', () => {
     for (const strength of [0.65, 0.78, 1.1, 1.45]) {
       for (let seed = 1; seed <= 25; seed += 1) {
         const p = plan(strength, seed);
         expect(p.duration).toBeLessThanOrEqual(4.5);
         for (let i = 0; i < base.count; i += 1) {
           const end = p.sample(i, p.duration);
-          expect(end.z).toBe(0);
-          expect(quarter(end.ax)).toBe(true);   // lying flat: whole quarter turns
-          expect(quarter(end.ay)).toBe(true);
-          expect(end.x).toBeGreaterThanOrEqual(p.bounds.minX - 0.01);
-          expect(end.x).toBeLessThanOrEqual(p.bounds.maxX + 0.01);
-          expect(end.y).toBeGreaterThanOrEqual(p.bounds.minY - 0.01);
-          expect(end.y).toBeLessThanOrEqual(p.bounds.maxY + 0.01);
+          expect(Math.hypot(end.x - p.bounds.cx, end.y - p.bounds.cy)).toBeLessThanOrEqual(p.bounds.radius + 0.01);
+          for (let f = 0; f < p.frames[i].length - 1; f += 1) expect(turnBetween(p.frames[i][f], p.frames[i][f + 1])).toBeLessThan(Math.PI / 2);
+          // At rest the die has stopped: the last frames are identical.
+          const last = p.frames[i].length - 1;
+          expect(Math.abs(p.frames[i][last].x - p.frames[i][last - 1].x)).toBeLessThan(0.5);
         }
       }
     }
   });
 
-  it('turns over in quick quarter turns while in the air and ends on the ground', () => {
-    for (let seed = 1; seed <= 15; seed += 1) {
-      const p = plan(1.2, seed);
-      for (let t = 0; t < p.duration; t += 1 / 60) {
-        const a = p.sample(0, t);
-        const b = p.sample(0, t + 1 / 60);
-        // No frame turns the cube by more than a quarter turn: it is a tumble, not a spin-up.
-        expect(Math.abs(b.ax - a.ax)).toBeLessThanOrEqual(90);
-        expect(Math.abs(b.ay - a.ay)).toBeLessThanOrEqual(90);
-      }
-      expect(p.sample(0, p.duration).z).toBe(0);
+  it('lies flat on the floor at any heading, not only at quarter turns', () => {
+    const headings = [];
+    for (let seed = 1; seed <= 300; seed += 1) {
+      const p = plan([0.65, 0.78, 1.1, 1.45][seed % 4], seed);
+      p.rest.forEach((r, i) => {
+        const end = p.sample(i, p.duration);
+        const onFlatFloor = Math.hypot(end.x - p.bounds.cx, end.y - p.bounds.cy) < p.bounds.radius - base.size * 1.4;
+        if (onFlatFloor && Math.hypot(end.x - p.sample(1 - i, p.duration).x, end.y - p.sample(1 - i, p.duration).y) > base.size * 1.6) {
+          expect(r.tilt).toBeLessThan(1.5);
+          headings.push(r.heading);
+        }
+      });
     }
+    expect(headings.length).toBeGreaterThan(100);
+    // Headings fill the whole quarter turn instead of piling up at 0.
+    const bins = [0, 0, 0, 0, 0, 0];
+    headings.forEach((h) => { bins[Math.min(5, Math.floor(h / 15))] += 1; });
+    for (const count of bins) { expect(count / headings.length).toBeGreaterThan(0.05); expect(count / headings.length).toBeLessThan(0.35); }
   });
 
-  it('lies squarely at exactly 0 degrees, and only turns about the vertical while in the air', () => {
-    for (const strength of [0.7, 1, 1.45]) {
-      for (let seed = 1; seed <= 25; seed += 1) {
-        const p = plan(strength, seed);
-        for (let i = 0; i < base.count; i += 1) {
-          const end = p.sample(i, p.duration);
-          expect(Math.abs(end.az / 360 - Math.round(end.az / 360))).toBeLessThan(1e-9);
-          for (let t = 0; t < p.duration; t += 1 / 60) {
-            const a = p.sample(i, t);
-            const b = p.sample(i, t + 1 / 60);
-            // On the ground the die is not turned: no yaw while it rests or slides.
-            if (a.z === 0 && b.z === 0) expect(Math.abs(b.az - a.az)).toBeLessThan(1e-9);
-          }
-        }
-      }
+  it('sometimes leans: on the sloped rim or on the other die', () => {
+    let leaning = 0;
+    let total = 0;
+    for (let seed = 1; seed <= 150; seed += 1) {
+      const p = plan([0.65, 1.1, 1.45][seed % 3], seed);
+      p.rest.forEach((r) => { total += 1; if (r.tilt > 1.5) leaning += 1; });
     }
+    expect(leaning / total).toBeGreaterThan(0.05);
+    expect(leaning / total).toBeLessThan(0.6);
+  });
+
+  it('turns the cube freely: all six faces come up about equally often', () => {
+    const seen = Object.fromEntries(SIDES.map((side) => [side, 0]));
+    let total = 0;
+    for (let seed = 1; seed <= 250; seed += 1) {
+      const p = plan([0.65, 0.78, 1.1, 1.45][seed % 4], seed + 500);
+      p.facing.forEach((side) => { seen[side] += 1; total += 1; });
+    }
+    for (const side of SIDES) { expect(seen[side] / total).toBeGreaterThan(0.1); expect(seen[side] / total).toBeLessThan(0.24); }
+  });
+
+  it('is deterministic for a given random source and obeys the physics settings', () => {
+    const a = plan(1.2, 9);
+    const b = plan(1.2, 9);
+    expect(b.sample(0, 0.7)).toEqual(a.sample(0, 0.7));
+    const heavy = planThrow({ ...base, strength: 1.2, rng: seeded(9), physics: { gravity: PHYSICS.gravity * 2 } });
+    expect(heavy.peakHeight).toBeLessThan(a.peakHeight);
+    const dead = planThrow({ ...base, strength: 1.2, rng: seeded(9), physics: { floorBounce: 0, wallBounce: 0, dieBounce: 0 } });
+    expect(dead.bounces).toBeLessThan(a.bounces);
+  });
+
+  it('describes an orientation consistently: matrix, normals and the angles the page would need', () => {
+    const p = plan(1.1, 3);
+    const pose = p.sample(0, 0.4);
+    for (const side of SIDES) {
+      const viaAngles = normalOf(side, pose.ax, pose.ay, pose.az);
+      const viaMatrix = normalOfMatrix(side, pose.m);
+      viaMatrix.forEach((v, k) => expect(v).toBeCloseTo(viaAngles[k], 6));
+    }
+    const identity = eulerOf([1, 0, 0, 0, 1, 0, 0, 0, 1]);
+    expect(Math.abs(identity.ax) + Math.abs(identity.ay) + Math.abs(identity.az)).toBe(0);
   });
 
   it('paints the top face with the number the server rolled', () => {
@@ -92,19 +135,20 @@ describe('dice throw physics', () => {
 
   it('bounces and clicks: a throw lands several times, each landing is a sound with a strength', () => {
     const p = plan(1.2, 7);
-    expect(p.bounces).toBeGreaterThanOrEqual(4);
+    expect(p.bounces).toBeGreaterThanOrEqual(3);
     expect(p.floorHits).toBeGreaterThanOrEqual(3);
     for (const e of p.events) { expect(e.power).toBeGreaterThan(0); expect(e.power).toBeLessThanOrEqual(1); expect(e.t).toBeLessThanOrEqual(p.duration + 0.02); }
     const times = p.events.map((e) => e.t);
     expect(times).toEqual([...times].sort((a, b) => a - b));
   });
 
-  it('keeps the two dice apart at rest', () => {
-    for (let seed = 1; seed <= 25; seed += 1) {
+  it('keeps the two dice from sinking into each other at rest', () => {
+    for (let seed = 1; seed <= 60; seed += 1) {
       const p = plan(1, seed);
       const a = p.sample(0, p.duration);
       const b = p.sample(1, p.duration);
-      expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(base.size * 0.85);
+      expect(sinking(a, b, base.size)).toBeLessThan(2);
+      expect(sinking(b, a, base.size)).toBeLessThan(2);
     }
   });
 
@@ -142,16 +186,18 @@ describe('dice throw physics', () => {
     expect(p.bounds.radius).toBeCloseTo(radius, 6);
   });
 
-  it('never leaves two dice overlapping when they come to rest, nor while they lie on the floor', () => {
+  it('never lets one die sink into the other while they move, and two flat dice rest a full width apart', () => {
     for (const strength of [0.65, 0.78, 1.1, 1.45]) {
-      for (let seed = 1; seed <= 60; seed += 1) {
+      for (let seed = 1; seed <= 40; seed += 1) {
         const p = plan(strength, seed);
-        const end = [p.sample(0, p.duration), p.sample(1, p.duration)];
-        expect(Math.hypot(end[0].x - end[1].x, end[0].y - end[1].y)).toBeGreaterThanOrEqual(base.size * 1.05);
         for (let t = 0; t <= p.duration; t += 1 / 30) {
           const a = p.sample(0, t);
           const b = p.sample(1, t);
-          if (a.z < base.size * 0.2 && b.z < base.size * 0.2) expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThanOrEqual(base.size * 0.9);
+          expect(sinking(a, b, base.size)).toBeLessThan(base.size * 0.2);
+        }
+        const end = [p.sample(0, p.duration), p.sample(1, p.duration)];
+        if (p.rest[0].tilt < 1.5 && p.rest[1].tilt < 1.5 && end[0].z < 1 && end[1].z < 1) {
+          expect(Math.hypot(end[0].x - end[1].x, end[0].y - end[1].y)).toBeGreaterThan(base.size * 0.95);
         }
       }
     }

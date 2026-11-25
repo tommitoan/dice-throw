@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { planThrow, layoutFor, normalOf, dishOf, SIDES } from './dice-throw.js';
+import { planThrow, layoutFor, normalOfMatrix, dishOf, SIDES } from './dice-throw.js';
 import './dice-throw.css';
 
 const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
@@ -31,7 +31,8 @@ function Die({ layout, size, dieRef, shadowRef }) {
 // waiting for. `onSound(kind, { power })` is called for the throw's sounds (the cup shake at the start,
 // then every landing and collision at its time); the package plays no audio itself. `onPlan(plan)`
 // receives the planned throw (frames, events, duration) once it is worked out, for tests and tools.
-export default function DiceThrow({ faces, strength, snap = false, speed = 1, onSettled, onSound, onPlan }) {
+// `physics` overrides any of the physics settings (see PHYSICS in dice-throw.js).
+export default function DiceThrow({ faces, strength, snap = false, speed = 1, physics, onSettled, onSound, onPlan }) {
   const sceneRef = useRef(null);
   const dieRefs = useRef([]);
   const shadowRefs = useRef([]);
@@ -51,7 +52,7 @@ export default function DiceThrow({ faces, strength, snap = false, speed = 1, on
     const width = scene?.clientWidth || 220;
     const height = scene?.clientHeight || width;
     const size = sizeFor(width);
-    const plan = planThrow({ width, height, size, strength, count: values.length });
+    const plan = planThrow({ width, height, size, strength, count: values.length, physics });
     planRef.current?.(plan);
     setSetup({ plan, size, dish: dishOf(width, height, size), layouts: values.map((value, i) => layoutFor(value, plan.facing[i])) });
   }, [key]);
@@ -68,9 +69,10 @@ export default function DiceThrow({ faces, strength, snap = false, speed = 1, on
       // Height is shown by scale, not by depth: each die has its own perspective, centred on itself,
       // so a die at rest is seen straight down and shows only its top face, wherever it lies.
       die.style.transform = `translate(${pose.x - size / 2}px, ${pose.y - size / 2}px) scale(${(1 + pose.z / 520).toFixed(3)})`;
-      die.firstChild.style.transform = `rotateX(${pose.ax}deg) rotateY(${pose.ay}deg) rotateZ(${pose.az}deg)`;
+      const m = pose.m;
+      die.firstChild.style.transform = `matrix3d(${m[0]},${m[3]},${m[6]},0,${m[1]},${m[4]},${m[7]},0,${m[2]},${m[5]},${m[8]},0,0,0,0,1)`;
       for (const face of die.firstChild.children) {
-        const n = normalOf(face.dataset.side, pose.ax, pose.ay, pose.az);
+        const n = normalOfMatrix(face.dataset.side, m);
         const lit = Math.max(0, n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2]);
         face.style.setProperty('--sh', (0.95 + 0.05 * lit).toFixed(3));
       }

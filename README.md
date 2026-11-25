@@ -25,10 +25,30 @@ The physics alone, without React:
 import { planThrow, layoutFor } from 'dice-throw/engine';
 
 const plan = planThrow({ width: 220, height: 220, size: 30, strength: 1.1, count: 2 });
-plan.sample(0, t); // { x, y, z, ax, ay, az } of the first die at time t (seconds)
+plan.sample(0, t); // { x, y, z, m, q, ax, ay, az } of the first die at time t (m: 3x3 row-major orientation)
+plan.rest;         // per die at rest: { facing, tilt, heading } (tilt in degrees from lying flat)
 plan.duration;     // seconds until both dice rest
 plan.events;       // [{ t, kind, power }, ...] landings and collisions, for sound
 ```
+
+## Physics
+
+Each die is a rigid cube (position, velocity, orientation, spin) stepped at 240 Hz. Contacts of a corner with the dish
+and of one cube with another are resolved with impulses (restitution and Coulomb friction), so nothing about how a
+die turns over or where it lies is scripted: it lies flat at any heading, or leans on the sloped rim or on the
+other die. The faces are painted afterwards so the top one is the number the server rolled.
+
+Every setting can be overridden with `physics` (a prop of `DiceThrow`, an option of `planThrow`); the demo page has a
+slider for each. Defaults are in `PHYSICS`:
+
+| setting | default | effect |
+|---|---|---|
+| `gravity` | 2100 | px/s²; lower is floatier |
+| `floorBounce`, `wallBounce`, `dieBounce` | 0.5, 0.45, 0.5 | share of the approach speed that comes back |
+| `floorFriction`, `dieFriction`, `wallFriction` | 0.5, 0.3, 0.3 | grip; high friction turns sliding into rolling sooner |
+| `rimAngle`, `rimWidth` | 12°, 0.7 | the sloped rim of the dish (width in die widths); 0 gives a flat dish with a wall |
+| `spin` | 1 | multiplier on the spin a throw starts with |
+| `settle` | 1 | multiplier on the damping that brings dice to rest |
 
 ## Develop
 
@@ -44,4 +64,4 @@ throws and checks that the dice rest flat, stay inside the dish and keep apart.
 
 ## Status
 
-Extracted from a Ludo game without changes to the physics. License: not chosen yet.
+Version 0.2: rigid-body physics (earlier versions scripted quarter-turn flips). License: not chosen yet.

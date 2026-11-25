@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { DiceThrow, RollHoldButton, planThrow, chargeOf, SIDES } from 'dice-throw';
+import { DiceThrow, RollHoldButton, planThrow, chargeOf, PHYSICS, SIDES } from 'dice-throw';
 import './demo.css';
 
 const randomFace = () => 1 + Math.floor(Math.random() * 6);
@@ -24,20 +24,21 @@ function makeSound() {
   };
 }
 
-// Runs many plans and checks what must hold for every throw: resting flat, inside the dish, apart
-// from each other, in bounded time; and reports how evenly the dice end up on each side.
-function stress({ count, size, stage, runs }) {
-  const out = { runs, maxDuration: 0, meanDuration: 0, notFlat: 0, outside: 0, minGap: Infinity, maxBounces: 0, sides: Object.fromEntries(SIDES.map((s) => [s, 0])) };
-  const quarter = (deg) => Math.abs(deg / 90 - Math.round(deg / 90)) < 1e-6;
+// Runs many plans and checks what must hold for every throw: inside the dish, in bounded time, no two
+// dice sunk into each other; and reports how evenly the dice end up on each side and how they lie.
+function stress({ count, size, stage, runs, physics }) {
+  const out = { runs, maxDuration: 0, meanDuration: 0, tilted: 0, total: 0, outside: 0, minGap: Infinity, maxBounces: 0, sides: Object.fromEntries(SIDES.map((s) => [s, 0])), headings: [0, 0, 0, 0, 0, 0] };
   for (let n = 0; n < runs; n += 1) {
     const strength = 0.65 + 0.8 * (n / (runs - 1 || 1));
-    const plan = planThrow({ width: stage, height: stage, size, strength, count });
+    const plan = planThrow({ width: stage, height: stage, size, strength, count, physics });
     out.maxDuration = Math.max(out.maxDuration, plan.duration);
     out.meanDuration += plan.duration / runs;
     out.maxBounces = Math.max(out.maxBounces, plan.bounces);
     const ends = Array.from({ length: count }, (_, i) => plan.sample(i, plan.duration));
     ends.forEach((end, i) => {
-      if (end.z !== 0 || !quarter(end.ax) || !quarter(end.ay)) out.notFlat += 1;
+      out.total += 1;
+      if (plan.rest[i].tilt > 1.5) out.tilted += 1;
+      out.headings[Math.min(5, Math.floor(plan.rest[i].heading / 15))] += 1;
       if (Math.hypot(end.x - plan.bounds.cx, end.y - plan.bounds.cy) > plan.bounds.radius + 0.01) out.outside += 1;
       out.sides[plan.facing[i]] += 1;
       for (let j = i + 1; j < count; j += 1) out.minGap = Math.min(out.minGap, Math.hypot(end.x - ends[j].x, end.y - ends[j].y) / size);
@@ -45,6 +46,19 @@ function stress({ count, size, stage, runs }) {
   }
   return out;
 }
+
+const KNOBS = [
+  ['gravity', 'Gravity', 800, 4000, 50],
+  ['floorBounce', 'Floor bounce', 0, 0.95, 0.01],
+  ['floorFriction', 'Floor friction', 0.05, 1.2, 0.01],
+  ['wallBounce', 'Wall bounce', 0, 0.95, 0.01],
+  ['dieBounce', 'Dice bounce', 0, 0.95, 0.01],
+  ['dieFriction', 'Dice friction', 0.05, 1.2, 0.01],
+  ['rimAngle', 'Rim angle °', 0, 45, 1],
+  ['rimWidth', 'Rim width', 0, 2, 0.05],
+  ['spin', 'Spin', 0, 2.5, 0.05],
+  ['settle', 'Damping', 0.2, 4, 0.05],
+];
 
 function App() {
   const [count, setCount] = useState(2);
@@ -61,6 +75,7 @@ function App() {
   const [plan, setPlan] = useState(null);
   const [settled, setSettled] = useState(true);
   const [report, setReport] = useState(null);
+  const [physics, setPhysics] = useState({ ...PHYSICS });
   const play = useMemo(makeSound, []);
   const soundOn = useRef(sound);
   soundOn.current = sound;
@@ -83,7 +98,7 @@ function App() {
         <p className="muted" style={{ margin: 0, color: 'var(--muted)' }}>Faces are decided first; the throw lands on them. Hold the button to charge, release to throw.</p>
         <div className="stage-wrap">
           <div className="stage" style={{ width: stage, height: stage }}>
-            {thrown != null && <DiceThrow key={throwId} faces={faces} strength={thrown} snap={snap} speed={speed}
+            {thrown != null && <DiceThrow key={throwId} faces={faces} strength={thrown} snap={snap} speed={speed} physics={physics}
               onPlan={setPlan} onSettled={() => setSettled(true)}
               onSound={(kind, info) => { if (soundOn.current) play(kind, info); }} />}
           </div>
@@ -118,17 +133,26 @@ function App() {
         </section>
 
         <section className="panel">
+          <h2>Physics <button type="button" onClick={() => setPhysics({ ...PHYSICS })} style={{ marginLeft: 8 }}>reset</button></h2>
+          {KNOBS.map(([key, label, min, max, step]) => (
+            <div className="row" key={key}><label>{label}</label>
+              <input type="range" min={min} max={max} step={step} value={physics[key]} onChange={(e) => setPhysics((p) => ({ ...p, [key]: Number(e.target.value) }))} />
+              <span className="value">{physics[key]}</span></div>))}
+        </section>
+
+        <section className="panel">
           <h2>Last throw</h2>
-          {plan ? <div className="stats">{`duration   ${plan.duration.toFixed(2)} s\npeak       ${plan.peakHeight.toFixed(0)} px\nbounces    ${plan.bounces}\nfloor hits ${plan.floorHits}\nends on    ${plan.facing.join(', ')}`}</div> : <div className="stats">–</div>}
+          {plan ? <div className="stats">{`duration   ${plan.duration.toFixed(2)} s\npeak       ${plan.peakHeight.toFixed(0)} px\nbounces    ${plan.bounces}\nfloor hits ${plan.floorHits}\nends on    ${plan.facing.join(', ')}\n${plan.rest.map((r, i) => `die ${i + 1}      tilt ${r.tilt.toFixed(1)}°  heading ${r.heading.toFixed(0)}°`).join('\n')}`}</div> : <div className="stats">–</div>}
           <h2 style={{ marginTop: 12 }}>Sound events</h2>
           <div className="log">{plan ? plan.events.map((e) => `${e.t.toFixed(2).padStart(5)} s  ${e.kind.padEnd(5)} ${e.power.toFixed(2)}`).join('\n') || 'none' : '–'}</div>
         </section>
 
         <section className="panel">
           <h2>Stress test</h2>
-          <button type="button" onClick={() => setReport(stress({ count, size, stage, runs: 400 }))}>Run 400 throws</button>
+          <button type="button" onClick={() => setReport(stress({ count, size, stage, runs: 400, physics }))}>Run 400 throws</button>
           {report && <div className="stats" style={{ marginTop: 8 }}>
-            <div className={report.notFlat ? 'bad' : 'ok'}>{`not resting flat   ${report.notFlat}`}</div>
+            <div>{`leaning (>1.5°)   ${report.tilted} of ${report.total}`}</div>
+            <div>{`heading 0-90° in 6 bins  ${report.headings.join(' ')}`}</div>
             <div className={report.outside ? 'bad' : 'ok'}>{`outside the dish   ${report.outside}`}</div>
             <div className={report.minGap < 0.9 ? 'bad' : 'ok'}>{`closest dice gap  ${Number.isFinite(report.minGap) ? report.minGap.toFixed(2) + ' dice' : 'n/a'}`}</div>
             <div className={report.maxDuration > 4.5 ? 'bad' : 'ok'}>{`longest throw     ${report.maxDuration.toFixed(2)} s (mean ${report.meanDuration.toFixed(2)})`}</div>
