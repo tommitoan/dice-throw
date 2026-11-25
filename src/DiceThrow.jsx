@@ -15,6 +15,8 @@ function Die({ layout, size, dieRef, shadowRef }) {
     <span className="dt-shadow" ref={shadowRef} style={{ width: size, height: size }} />
     <span className="dt-die" ref={dieRef} style={{ width: size, height: size, '--dt-size': `${size}px` }}>
       <span className="dt-cube">
+        {/* A solid core just inside the faces: their rounded corners would otherwise leave dark notches at the cube's corners. */}
+        <span className="dt-core" aria-hidden="true">{SIDES.map((side) => <span key={side} className={`dt-core-face dt-core-${side}`} />)}</span>
         {SIDES.map((side) => <span key={side} className={`dt-face dt-${side}`} data-side={side}>
           {Array.from({ length: 9 }, (_, index) => PIPS[layout[side]].includes(index)
             ? <i key={index} className={`dt-pip ${layout[side] === 1 || layout[side] === 4 ? 'dt-pip-red' : ''} ${layout[side] === 1 ? 'dt-pip-one' : ''}`} />
@@ -72,6 +74,7 @@ export default function DiceThrow({ faces, strength, snap = false, speed = 1, ph
       const m = pose.m;
       die.firstChild.style.transform = `matrix3d(${m[0]},${m[3]},${m[6]},0,${m[1]},${m[4]},${m[7]},0,${m[2]},${m[5]},${m[8]},0,0,0,0,1)`;
       for (const face of die.firstChild.children) {
+        if (!face.dataset.side) continue;
         const n = normalOfMatrix(face.dataset.side, m);
         const lit = Math.max(0, n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2]);
         face.style.setProperty('--sh', (0.95 + 0.05 * lit).toFixed(3));
